@@ -1,3 +1,5 @@
+//const { async } = require("jshint/src/prod-params");
+
 document.addEventListener('DOMContentLoaded', () => {
     //Tabs
     const tabs = document.querySelectorAll('.tabheader__item'),
@@ -86,22 +88,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 if(t.total <= 0){
                     clearInterval(timeInterval);
                 }
-            }
-        }
+            };
+        };
 
         setClock('.timer', deadline);
 
         //Модальное окно
 
         const modalTrigger = document.querySelectorAll('[data-modal]'),
-                modal = document.querySelector('.modal'),
-                modalCloseBtn = document.querySelector('[data-close]');
+                modal = document.querySelector('.modal');
+                //modalCloseBtn = document.querySelector('[data-close]');
 
 
         function openModal() {
-            //modal.classList.add('show'); //первый вариант
-            //modal.classList.remove('hide'); //первый вариант
-            modal.classList.toggle('show');
+            modal.classList.add('show');
+            modal.classList.remove('hide');
             document.body.style.overflow = 'hidden'; //фиксация фоновой прокрутки
             clearInterval(modalTimerId); //не выполнять функцию modalTimerId, если модальное окно уже было открыто
         };
@@ -111,16 +112,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         function closeModal() {
-            //modal.classList.add('hide'); //первый вариант
-            //modal.classList.remove('show'); //первый вариант
-            modal.classList.toggle('show');
+            modal.classList.add('hide'); //первый вариант
+            modal.classList.remove('show'); //первый вариант
+            //modal.classList.toggle('show'); второй вариант
             document.body.style.overflow = '';
         }
 
-        modalCloseBtn.addEventListener('click', closeModal);
+        //modalCloseBtn.addEventListener('click', closeModal);
 
         modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
+            //Если кликаем на подложку или на крестик - закрывается модальное окно
+            if (e.target === modal || e.target.getAttribute('data-close') == '') {
                 closeModal();
             };
         });
@@ -133,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         //Таймер появления модального окна
-        //const modalTimerId = setTimeout(openModal, 3000);
+        const modalTimerId = setTimeout(openModal, 50000);
 
         function showModalByScroll(){ //Если пользователь долистал до конца страницы
             if (window.pageYOffset + document.documentElement.clientHeight >= document.documentElement.scrollHeight){
@@ -186,58 +188,177 @@ document.addEventListener('DOMContentLoaded', () => {
                 `;
                 this.parent.append(element);
             }
+        };
+
+    //Получаем данные
+    const getResource = async (url) => {
+        const res = await fetch(url);
+
+        if (!res.ok) {
+            throw new Error(`Could nit fetch ${url}, status: ${res.status}`);
         }
 
-    new MenuCard(
-        "img/tabs/vegy.jpg",
-        "vegy",
-        'Меню "Фитнес"',
-        'Меню "Фитнес" - это новый подход к приготовлению блюд: больше свежих овощей и фруктов. Продукт активных и здоровых людей. Это абсолютно новый продукт с оптимальной ценой и высоким качеством!',
-        9,
-        '.menu .container',
-        'menu__item',
-        //'big'
-    ).render();
+        return await res.json();
+    };
+
+    //Получаем данные с сервера и создаём новые карточки по этим данным на фронтенде
+    getResource('http://localhost:3000/menu')
+        .then(data => {
+            data.forEach(({img, alt, title, descr, price}) => {
+                new MenuCard(img, alt, title, descr, price, '.menu .container').render();
+            });
+        });
+
+    // new MenuCard(
+    //     "img/tabs/vegy.jpg",
+    //     "vegy",
+    //     'Меню "Фитнес"',
+    //     'Меню "Фитнес" - это новый подход к приготовлению блюд: больше свежих овощей и фруктов. Продукт активных и здоровых людей. Это абсолютно новый продукт с оптимальной ценой и высоким качеством!',
+    //     9,
+    //     '.menu .container',
+    //     'menu__item',
+    //     //'big'
+    // ).render();
 
     //Forms
 
     const forms = document.querySelectorAll('form');
 
     const message = {
-        loading: 'Загрузка',
+        loading: '/img/form/054 spinner.svg',
         success: 'Спасибо! Скоро мы с вами свяжемся',
         failure: 'Что-то пошло не так...'
     };
 
     forms.forEach(item => {
-        postData(item);
+        bindPostData(item);
     });
 
-    function postData(form) {
+    //Функции приема данных от сервера
+    const postData = async (url, data) => {
+        const res = await fetch(url, {
+            method: "POST",
+            headers: {
+                'Content-type': 'application/json'
+            },
+            body: data
+        });
+
+        return await res.json();
+    };
+
+    function bindPostData(form) {
         form.addEventListener('submit', (e) => {
             e.preventDefault(); //отменяем стандартное поведение браузера
 
-            const statusMessage = document.createElement('div');
-            statusMessage.classList.add('status');
-            statusMessage.textContent = message.loading;
-            form.append(statusMessage);
+            const statusMessage = document.createElement('img');
+            statusMessage.src = message.loading;
+            statusMessage.style.cssText = `
+                display: block;
+                margin: 0 auto;
+            `;
+            form.insertAdjacentElement('afterend', statusMessage); 
+            //расположение спиннера под окном
 
-            const request = new XMLHttpRequest();
-            request.open('POST', '/js/server.php');
-
-            //request.setRequestHeader('Content-type', 'multipart/form-data');
-            const formData = new FormData(form); //аттрибут name в фомах обязателен! 
+            //request.setRequestHeader('Content-type', 'application/json'); //для конвертации данных в формат JSON
+            const formData = new FormData(form); //аттрибут name в формах обязателен! 
         
-            request.send(formData);
+            const json = JSON.stringify(Object.fromEntries(formData.entries())); 
+            //entries - получаем данные из формы в виде массива массивов
+            //fromEntries - полученный массив превращаем в объект          
 
-            request.addEventListener('load', () => {
-                if (request.status === 200){
-                    console.log(request.response);
-                    statusMessage.textContent = message.success;
-                } else {
-                    statusMessage.textContent = message.failure;
-                };
+
+            postData('http://localhost:3000/requests', json)
+            //http://localhost:3000/requests - в файле db.json создаётся ключ
+            //requests с массивом введённых данных
+            .then(data => {
+                console.log(data);
+                showThanksModal(message.success);
+                form.reset(); //сброс формы после отправки
+                statusMessage.remove();
+            }).catch(() => {
+                showThanksModal(message.failure);
+            }).finally(() => {
+                form.reset();
             });
         });
     };
+
+    function showThanksModal(message){
+        const prevModalDialog = document.querySelector('.modal__dialog');
+
+        prevModalDialog.classList.add('hide');
+        openModal();
+
+        const thanksModal = document.createElement('div');
+        thanksModal.classList.add('.modal__dialog');
+        thanksModal.innerHTML = `
+            <div class="modal__content">
+                <div class="modal__close" data-close>×</div>
+                <div class="modal__title">${message}</div>
+            </div>
+        `;
+
+        document.querySelector('.modal').append(thanksModal);
+        setTimeout(() => {
+            thanksModal.remove();
+            prevModalDialog.classList.add('show');
+            prevModalDialog.classList.remove('hide');
+            closeModal();
+        }, 1000);
+    };
+
+    fetch('http://localhost:3000/menu')
+        .then(data => data.json())
+        .then(res => console.log(res));
+
+    //Slider
+    const slides = document.querySelectorAll('.offer__slide'),
+            prev = document.querySelector('.offer__slider-prev'),
+            next = document.querySelector('.offer__slider-next'),
+            total = document.querySelector('#total'),
+            current = document.querySelector('#current');
+    let slideIndex = 1;
+
+    if (slides.length < 10) {
+        total.textContent = `0${slides.length}`;
+    } else {
+        total.textContent = slides.length;
+    };
+
+    function showSlides(n) {
+        if (n > slides.length) {
+            slideIndex = 1;
+        };
+
+        if (n < 1) {
+            slideIndex = slides.length;
+        };
+
+        slides.forEach(item => item.style.display = 'none');
+
+        slides[slideIndex - 1].style.display = 'block';
+
+        if (slides.length < 10) {
+            current.textContent = `0${slideIndex}`;
+        } else {
+            current.textContent = slideIndex;
+        };
+
+    };
+
+    showSlides(slideIndex);
+
+    function plusSlides(n) {
+        showSlides(slideIndex += n);
+    };
+
+    prev.addEventListener('click', () => {
+        plusSlides(-1);
+    });
+
+    next.addEventListener('click', () => {
+        plusSlides(1);
+    });
+
 });
