@@ -12,14 +12,23 @@
   },
   "author": "",
   "license": "ISC",
+  "browsersList": [
+    "> 1%"
+  ],
   "bugs": {
     "url": "https://github.com/CamaRus/Foof-dist/issues"
   },
   "homepage": "https://github.com/CamaRus/Foof-dist#readme",
   "dependencies": {
+    "@babel/polyfill": "^7.12.1",
     "jshint": "^2.13.4"
   },
   "devDependencies": {
+    "@babel/cli": "^7.17.0",
+    "@babel/core": "^7.17.2",
+    "@babel/preset-env": "^7.16.11",
+    "babel-loader": "^8.2.3",
+    "core-js": "^3.21.0",
     "json-server": "^0.17.0",
     "webpack": "^5.68.0",
     "webpack-cli": "^4.9.2"
